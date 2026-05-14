@@ -46,9 +46,13 @@ if st.button("Run pipeline"):
                 if results["transcript"]:
                     st.subheader("Transcript")
                     st.write(results["transcript"])
+                    st.write(f"Transcript timing: {results['timing']['transcription']}")
+                    
 
                 st.subheader("Summary")
                 st.write(results["summary"])
+                st.write(f"Transcript timing: {results['timing']['summarization']}")
+                st.write(f"Translation timing: {results['timing']['translation']}")
 
                 st.subheader("Audio")
                 if results["truncated"] is True:
@@ -56,3 +60,6 @@ if st.button("Run pipeline"):
                 else:
                     st.write("Summary intact! (not truncated)")
                 st.audio(data=results["audio"])
+                st.write(f"Audio clip timing: {results['timing']['audio_clip']}")
+
+                st.write(f"\n\nTotal timing: {results['timing']['total']}")

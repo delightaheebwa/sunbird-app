@@ -6,6 +6,8 @@ from backend.sunbird_client import (
 )
 import io
 import wave
+import time
+from typing import Dict
 from typing import TypedDict
 
 from backend.errors import PipelineError, SunbirdAPIError
@@ -37,6 +39,7 @@ class PipelineResult(TypedDict):
     translation: str
     truncated: bool
     audio: str
+    timing: Dict[str, float]
 
 # the serial pipeline is a design choice and every step is needed
 def run_pipeline(
@@ -59,7 +62,17 @@ def run_pipeline(
         "translation": "",
         "truncated": False,
         "audio": "",
+        "timing": {
+            "transcription": 0.0,
+            "summarization": 0.0,
+            "translation": 0.0,
+            "audio_clip": 0.0,
+            "total": 0.0
+        }
     }
+
+    # find out the total timing
+    start = time.perf_counter()
 
     if audio_input != b"":
         # ensure audio length < 5 mins(300s)
@@ -72,17 +85,24 @@ def run_pipeline(
             raise PipelineError(
                 "Audio file exceeds 5 minutes. Please upload a shorter file."
             )
-
+        
         try:
+            # find out timing for each step
+            step_start = time.perf_counter()
             results["transcript"] = transcribe_audio(audio_bytes=audio_input)
             text = results["transcript"]
+            results["timing"]["transcription"] = time.perf_counter() - step_start
+            
         except SunbirdAPIError as e:
             raise PipelineError("Transcription failed") from e
+        
     else:
         text = text_input
 
     try:
+        step_start = time.perf_counter()
         results["summary"] = summarise_text(text=text)
+        results["timing"]["summarization"] = time.perf_counter() - step_start
     except SunbirdAPIError as e:
         raise PipelineError("Summarization failed") from e
 
@@ -91,9 +111,11 @@ def run_pipeline(
         raise PipelineError(f"Unsupported target language: {target_language}")
 
     try:
+        step_start = time.perf_counter()
         results["translation"] = translate_text(
             text=results["summary"], target_language=lang_code
         )
+        results["timing"]["translation"] = time.perf_counter() - step_start   
     except SunbirdAPIError as e:
         raise PipelineError("Translation failed") from e
 
@@ -109,10 +131,15 @@ def run_pipeline(
         raise PipelineError(f"No TTS voice configured for: {target_language}")
 
     try:
+        step_start = time.perf_counter()
         results["audio"] = synthesize_speech(
             text=results["translation"], speaker_id=voice_id
         )
+        results["timing"]["audio_clip"] = time.perf_counter() - step_start   
     except SunbirdAPIError as e:
         raise PipelineError("Speech synthesis failed") from e
+    
+    results["timing"]["total"] = time.perf_counter() - start
+
 
     return results
