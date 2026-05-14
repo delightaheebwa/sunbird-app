@@ -79,7 +79,7 @@ def translate_text(
     return translated_text
 
 
-def synthesize_speech(text: str, speaker_id: int, response_mode: str = "url") -> str:
+def synthesize_speech(text: str, speaker_id: int = 248, response_mode: str = "url") -> str:
     """Send text and get back a signed audio URL."""
     payload = {
         "text": text,

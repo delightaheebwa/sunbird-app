@@ -1,13 +1,13 @@
+from backend import sunbird_client
+
 import sys
 import types
 import unittest
 from unittest.mock import Mock, patch
 
 dotenv_stub = types.ModuleType("dotenv")
-dotenv_stub.load_dotenv = lambda: None
+setattr(dotenv_stub, "load_dotenv", lambda: None)
 sys.modules.setdefault("dotenv", dotenv_stub)
-
-from backend import sunbird_client
 
 
 class SunbirdClientTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class SunbirdClientTests(unittest.TestCase):
         }
         mock_post.return_value = mock_response
 
-        output = sunbird_client.translate_text("How are you?", "eng", "lug")
+        output = sunbird_client.translate_text("How are you?", "lug", "eng")
 
         self.assertEqual(output, "Oli otya?")
         _, kwargs = mock_post.call_args
