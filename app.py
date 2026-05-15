@@ -3,7 +3,7 @@ from backend.pipeline import run_pipeline
 from backend.errors import PipelineError, SunbirdAPIError
 
 
-st.title("LocGen\nTranscribe, Summarise & Translate all in your local language!")
+st.title("LocGen\nTranscribe, Summarise, Translate & Get Audio all in your local language!")
 
 input_mode = st.radio("Input type", ["Text", "Audio file"])
 
@@ -19,7 +19,7 @@ else:
 
 target_language = st.selectbox(
     label="Translate summary to:",
-    options=["Acholi", "Lugbara", "Luganda", "Runyankole", "Ateso"],
+    options=["Acholi", "Lugbara", "Luganda", "Runyankole", "Ateso", "Swahili"],
 )
 
 if st.button("Run pipeline"):
@@ -31,7 +31,7 @@ if st.button("Run pipeline"):
         st_summary = st.empty()
         st_translation = st.empty()
         st_audio = st.empty()
-        st_total_timing = st.empty()
+        #st_total_timing = st.empty()
 
         with st.spinner("Processing..."):
             try:
@@ -50,19 +50,19 @@ if st.button("Run pipeline"):
                             with st_transcript.container():
                                 st.subheader("Transcript")
                                 st.write(results["transcript"])
-                                st.write(f"Transcript timing: {results['timing']['transcription']}")
-                            
+                                # st.write(f"Transcript timing: {results['timing']['transcription']}")
+
                     elif state == "summarization":
                         with st_summary.container():
                             st.subheader("Summary")
                             st.write(results["summary"])
-                            st.write(f"Transcript timing: {results['timing']['summarization']}")
+                            # st.write(f"Transcript timing: {results['timing']['summarization']}")
 
                     elif state == "translation":
                         with st_translation.container():
                             st.subheader("Translated Summary")
                             st.write(results["translation"])
-                            st.write(f"Translation timing: {results['timing']['translation']}")
+                            # st.write(f"Translation timing: {results['timing']['translation']}")
 
                     elif state == "audio_clip":
                         with st_audio.container():
@@ -72,12 +72,12 @@ if st.button("Run pipeline"):
                             else:
                                 st.write("Summary intact! (not truncated)")
                             st.audio(data=results["audio"])
-                            st.write(f"Audio clip timing: {results['timing']['audio_clip']}")
+                            # st.write(f"Audio clip timing: {results['timing']['audio_clip']}")
 
-                    elif state == "complete":
-                        with st_total_timing.container():
-                            st.write(f"\n\nTotal timing: {results['timing']['total']}")
-    
+                    #elif state == "complete":
+                     #   with st_total_timing.container():
+                            # st.write(f"\n\nTotal timing: {results['timing']['total']}")
+
             except PipelineError as e:
                 st.error(f"Processing failed: {e}")
                 st.exception(e)
@@ -87,4 +87,3 @@ if st.button("Run pipeline"):
             except Exception as e:
                 st.error("An unexpected error occurred.")
                 st.exception(e)
-            

@@ -7,30 +7,27 @@ from backend.sunbird_client import (
 
 import io
 import wave
-import time
-from typing import Dict, TypedDict, Literal, Generator
+
+# import time
+from typing import TypedDict, Literal, Generator  # ,Dict
 
 from backend.errors import PipelineError, SunbirdAPIError
 
 # because summarization can only be in English and Luganda(of which translation supports only English to local language and vice versa) I have to make the Input-transcribe/text-summarize part of the pipeline only use English. Translation and STT will use the langs common to both of them.
 # won't include english because requirements state that the translation and TTS should be in a local language
-LANG_CODES = {
-    "Acholi": "ach",
-    "Lugbara": "lgg",
-    "Luganda": "lug",
-    "Runyankole": "nyn",
-    "Ateso": "teo",
-}
 
 VOICE_IDS = {
     "Acholi": 241,
     "Ateso": 242,
     "Runyankole": 243,
     "Lugbara": 245,
+    "Swahili": 246,
     "Luganda": 248,
 }
 
-PipelineState = Literal["transcription", "summarization", "translation", "audio_clip", "complete"]
+PipelineState = Literal[
+    "transcription", "summarization", "translation", "audio_clip", "complete"
+]
 
 
 class PipelineResult(TypedDict):
@@ -39,7 +36,7 @@ class PipelineResult(TypedDict):
     translation: str
     truncated: bool
     audio: str
-    timing: Dict[str, float]
+    # timing: Dict[str, float]
 
 
 class PipelineYield(TypedDict):
@@ -56,10 +53,21 @@ def run_pipeline(
         """Returns duration in seconds"""
         # open uploaded bytes as WAV stream to calculate duration directly
         # since I am using WAV only for this project... it's not flexible however to other formats
-        with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
-            frame_count = wav_file.getnframes()
-            frame_rate = wav_file.getframerate()
-            return frame_count / float(frame_rate)
+
+        try:
+            with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+                frame_count = wav_file.getnframes()
+                frame_rate = wav_file.getframerate()
+
+                # prevent division by zero if header is corrupted
+                if frame_rate == 0:
+                    # since it has no chance of successfully transcribing it and to avoid a later if statement
+                    raise PipelineError("WAV header is corrupted.")
+
+                return frame_count / float(frame_rate)
+
+        except wave.Error as e:
+            raise PipelineError("WAV data is corrupted.") from e
 
     # transport contract between pipeline and Streamlit
     results: PipelineResult = {
@@ -68,65 +76,59 @@ def run_pipeline(
         "translation": "",
         "truncated": False,
         "audio": "",
-        "timing": {
-            "transcription": 0.0,
-            "summarization": 0.0,
-            "translation": 0.0,
-            "audio_clip": 0.0,
-            "total": 0.0
-        }
+        # "timing": {
+        #     "transcription": 0.0,
+        #     "summarization": 0.0,
+        #     "translation": 0.0,
+        #     "audio_clip": 0.0,
+        #     "total": 0.0
+        # }
     }
 
-    
-
     # find out the total timing
-    start = time.perf_counter()
+    # start = time.perf_counter()
 
     if audio_input != b"":
         # ensure audio length < 5 mins(300s)
-        try:
-            duration = check_audio_duration(audio_bytes=audio_input)
-        except Exception as e:
-            raise PipelineError("Could not read uploaded audio file") from e
+        duration = check_audio_duration(audio_bytes=audio_input)
 
         if duration > 300:
             raise PipelineError(
                 "Audio file exceeds 5 minutes. Please upload a shorter file."
             )
-        
+
         try:
             # find out timing for each step
-            step_start = time.perf_counter()
+            # step_start = time.perf_counter()
             results["transcript"] = transcribe_audio(audio_bytes=audio_input)
             text = results["transcript"]
-            results["timing"]["transcription"] = time.perf_counter() - step_start
+            # results["timing"]["transcription"] = time.perf_counter() - step_start
             yield {"current_state": "transcription", "results": results}
-            
+
         except SunbirdAPIError as e:
             raise PipelineError("Transcription failed") from e
-        
+
     else:
         text = text_input
 
     try:
-        step_start = time.perf_counter()
+        # step_start = time.perf_counter()
         results["summary"] = summarise_text(text=text)
-        results["timing"]["summarization"] = time.perf_counter() - step_start
+        # results["timing"]["summarization"] = time.perf_counter() - step_start
         yield {"current_state": "summarization", "results": results}
     except SunbirdAPIError as e:
         raise PipelineError("Summarization failed") from e
 
-    lang_code = LANG_CODES.get(target_language)
-    if not lang_code:
+    if not target_language:
         raise PipelineError(f"Unsupported target language: {target_language}")
 
     try:
-        step_start = time.perf_counter()
+        # step_start = time.perf_counter()
         results["translation"] = translate_text(
-            text=results["summary"], target_language=lang_code
+            text=results["summary"], target_language=target_language
         )
-        results["timing"]["translation"] = time.perf_counter() - step_start  
-        yield {"current_state": "translation", "results": results} 
+        # results["timing"]["translation"] = time.perf_counter() - step_start
+        yield {"current_state": "translation", "results": results}
 
     except SunbirdAPIError as e:
         raise PipelineError("Translation failed") from e
@@ -143,14 +145,14 @@ def run_pipeline(
         raise PipelineError(f"No TTS voice configured for: {target_language}")
 
     try:
-        step_start = time.perf_counter()
+        # step_start = time.perf_counter()
         results["audio"] = synthesize_speech(
             text=results["translation"], speaker_id=voice_id
         )
-        results["timing"]["audio_clip"] = time.perf_counter() - step_start
-        yield {"current_state": "audio_clip", "results": results}   
+        # results["timing"]["audio_clip"] = time.perf_counter() - step_start
+        yield {"current_state": "audio_clip", "results": results}
     except SunbirdAPIError as e:
         raise PipelineError("Speech synthesis failed") from e
-    
-    results["timing"]["total"] = time.perf_counter() - start
+
+    # results["timing"]["total"] = time.perf_counter() - start
     yield {"current_state": "complete", "results": results}
