@@ -56,30 +56,25 @@ def summarise_text(text: str) -> str:
 def translate_text(
     text: str, target_language: str, source_language: str = "eng"
 ) -> str:
-    """Translate text via Sunbird's NLLB translation endpoint."""
+    """Translate text using Sunflower from English to target local language."""
     try:
         response = requests.post(
-            url=f"{BASE_URL}/tasks/translate",
+            url=f"{BASE_URL}/tasks/sunflower_simple",
             headers=HEADERS,
-            json={
-                "source_language": source_language,
-                "target_language": target_language,
-                "text": text,
-            },
+            data={"instruction": f"Translate '{text}' from {source_language} to {target_language}."},
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         raise SunbirdAPIError("Translation request failed") from e
 
-    output = response.json().get("output") or {}
-    translated_text = output.get("translated_text") or output.get("text")
-    if not translated_text:
-        raise SunbirdAPIError("Translation response did not include translated text.")
-    return translated_text
+    translation = response.json().get("response")
+    if not translation:
+        raise SunbirdAPIError("Sunflower response did not include translated text.")
+    return translation
 
 
-def synthesize_speech(text: str, speaker_id: int, response_mode: str = "url") -> str:
+def synthesize_speech(text: str, speaker_id: int = 248, response_mode: str = "url") -> str:
     """Send text and get back a signed audio URL."""
     payload = {
         "text": text,
