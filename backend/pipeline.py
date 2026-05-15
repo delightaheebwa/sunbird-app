@@ -103,7 +103,7 @@ def run_pipeline(
             results["transcript"] = transcribe_audio(audio_bytes=audio_input)
             text = results["transcript"]
             # results["timing"]["transcription"] = time.perf_counter() - step_start
-            yield {"current_state": "transcription", "results": results}
+            yield {"current_state": "transcription", "results": results.copy()}
 
         except SunbirdAPIError as e:
             raise PipelineError("Transcription failed") from e
@@ -115,11 +115,12 @@ def run_pipeline(
         # step_start = time.perf_counter()
         results["summary"] = summarise_text(text=text)
         # results["timing"]["summarization"] = time.perf_counter() - step_start
-        yield {"current_state": "summarization", "results": results}
+        yield {"current_state": "summarization", "results": results.copy()}
     except SunbirdAPIError as e:
         raise PipelineError("Summarization failed") from e
 
-    if not target_language:
+    voice_id = VOICE_IDS.get(target_language)
+    if not voice_id:
         raise PipelineError(f"Unsupported target language: {target_language}")
 
     try:
@@ -128,7 +129,7 @@ def run_pipeline(
             text=results["summary"], target_language=target_language
         )
         # results["timing"]["translation"] = time.perf_counter() - step_start
-        yield {"current_state": "translation", "results": results}
+        yield {"current_state": "translation", "results": results.copy()}
 
     except SunbirdAPIError as e:
         raise PipelineError("Translation failed") from e
@@ -140,19 +141,15 @@ def run_pipeline(
     else:
         results["truncated"] = False
 
-    voice_id = VOICE_IDS.get(target_language)
-    if not voice_id:
-        raise PipelineError(f"No TTS voice configured for: {target_language}")
-
     try:
         # step_start = time.perf_counter()
         results["audio"] = synthesize_speech(
             text=results["translation"], speaker_id=voice_id
         )
         # results["timing"]["audio_clip"] = time.perf_counter() - step_start
-        yield {"current_state": "audio_clip", "results": results}
+        yield {"current_state": "audio_clip", "results": results.copy()}
     except SunbirdAPIError as e:
         raise PipelineError("Speech synthesis failed") from e
 
     # results["timing"]["total"] = time.perf_counter() - start
-    yield {"current_state": "complete", "results": results}
+    yield {"current_state": "complete", "results": results.copy()}

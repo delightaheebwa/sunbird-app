@@ -28,26 +28,19 @@ class SunbirdClientTests(unittest.TestCase):
         self.assertEqual(kwargs["files"]["audio"][2], "audio/wav")
 
     @patch("backend.sunbird_client.requests.post")
-    def test_translate_text_uses_translate_endpoint(self, mock_post: Mock) -> None:
+    def test_translate_text_uses_sunflower_contract(self, mock_post: Mock) -> None:
         mock_response = Mock()
-        mock_response.json.return_value = {
-            "status": "COMPLETED",
-            "output": {"translated_text": "Oli otya?"},
-        }
+        mock_response.json.return_value = {"response": "Oli otya?"}
         mock_post.return_value = mock_response
 
         output = sunbird_client.translate_text("How are you?", "lug", "eng")
 
         self.assertEqual(output, "Oli otya?")
         _, kwargs = mock_post.call_args
-        self.assertEqual(kwargs["url"], "https://api.sunbird.ai/tasks/translate")
+        self.assertEqual(kwargs["url"], "https://api.sunbird.ai/tasks/sunflower_simple")
         self.assertEqual(
-            kwargs["json"],
-            {
-                "source_language": "eng",
-                "target_language": "lug",
-                "text": "How are you?",
-            },
+            kwargs["data"],
+            {"instruction": "Translate 'How are you?' from eng to lug."},
         )
 
     @patch("backend.sunbird_client.requests.post")

@@ -34,6 +34,41 @@ class PipelineErrorHandlingTests(unittest.TestCase):
 
         self.assertEqual(str(error.exception), "Transcription failed")
 
+    @patch("backend.pipeline.summarise_text")
+    @patch("backend.pipeline.translate_text")
+    def test_unsupported_language_fails_before_translation(
+        self, mock_translate, mock_summarise
+    ) -> None:
+        mock_summarise.return_value = "short summary"
+
+        with self.assertRaises(PipelineError) as error:
+            list(run_pipeline(target_language="French", text_input="hello"))
+
+        self.assertEqual(str(error.exception), "Unsupported target language: French")
+        mock_summarise.assert_called_once()
+        mock_translate.assert_not_called()
+
+    @patch("backend.pipeline.summarise_text")
+    @patch("backend.pipeline.translate_text")
+    @patch("backend.pipeline.synthesize_speech")
+    def test_yields_are_snapshots_not_mutated(
+        self, mock_synthesize, mock_translate, mock_summarise
+    ) -> None:
+        mock_summarise.return_value = "summary"
+        mock_translate.return_value = "translated"
+        mock_synthesize.return_value = "https://audio.example"
+
+        updates = list(run_pipeline(target_language="Luganda", text_input="hello"))
+
+        self.assertEqual(updates[0]["current_state"], "summarization")
+        self.assertEqual(updates[0]["results"]["summary"], "summary")
+        self.assertEqual(updates[0]["results"]["translation"], "")
+        self.assertEqual(updates[0]["results"]["audio"], "")
+
+        self.assertEqual(updates[1]["current_state"], "translation")
+        self.assertEqual(updates[1]["results"]["translation"], "translated")
+        self.assertEqual(updates[1]["results"]["audio"], "")
+
 
 if __name__ == "__main__":
     unittest.main()
