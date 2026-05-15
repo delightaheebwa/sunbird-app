@@ -44,7 +44,7 @@ class PipelineErrorHandlingTests(unittest.TestCase):
         with self.assertRaises(PipelineError) as error:
             list(run_pipeline(target_language="French", text_input="hello"))
 
-        self.assertEqual(str(error.exception), "Unsupported target language: French")
+        self.assertEqual(str(error.exception), "No TTS voice configured for: French")
         mock_summarise.assert_called_once()
         mock_translate.assert_not_called()
 

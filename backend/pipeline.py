@@ -121,7 +121,7 @@ def run_pipeline(
 
     voice_id = VOICE_IDS.get(target_language)
     if not voice_id:
-        raise PipelineError(f"Unsupported target language: {target_language}")
+        raise PipelineError(f"No TTS voice configured for: {target_language}")
 
     try:
         # step_start = time.perf_counter()
