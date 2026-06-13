@@ -60,9 +60,8 @@ sunbird-app/
     pipeline.py                   Core generator pipeline (4 stages)
     sunbird_client.py             Sunbird AI API client functions
     errors.py                     Custom exception classes
-  tests/
-    test_pipeline.py              Unit tests for pipeline logic
-    test_sunbird_client.py        Unit tests for API client with mocked HTTP
+  test_pipeline.py                Unit tests for pipeline logic
+  test_sunbird_client.py          Unit tests for API client with mocked HTTP
 ```
 
 ---
@@ -183,8 +182,8 @@ python -m unittest discover -v
 The test suite covers:
 - Pipeline state transitions and error handling
 - API client request formatting (with mocked HTTP)
-- Audio duration validation
 - Language/TTS voice validation
+- WAV audio parsing and corrupted header detection
 
 ---
 
@@ -194,7 +193,7 @@ The test suite covers:
 - **No streaming:** The Sunbird REST APIs don't support SSE/WebSocket, so results appear after each stage completes (no partial/token-level streaming)
 - **TTS bottleneck:** Speech synthesis is the slowest stage (~83s+), and the full audio must be generated before playback
 - **Maximum audio length:** 5 minutes (300 seconds)
-- **Translation truncation:** Translations exceeding 10,000 characters are silently truncated
+- **Translation truncation:** Translations exceeding 10,000 characters are truncated (the pipeline flags this via `results["truncated"]` and the UI displays a note)
 - **Missing `__init__.py` in `backend/`:** (Note: added in this release — ensures reliable package imports)
 
 ---
